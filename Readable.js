@@ -100,6 +100,35 @@ Readable.prototype.read = function(n) {
  
     return buffer;
 };
+// 暂停读取
+ReadStream.prototype.pause = function() {
+    this.flowing = false;
+};
+
+// 恢复读取
+ReadStream.prototype.resume = function() {
+    this.flowing = true;
+    if (!this.isEnd) this.read();
+};
+// 连接可读流和可写流的方法 pipe
+ReadStream.prototype.pipe = function(dest) {
+    // 开始读取
+    this.on("data", data => {
+        // 如果超出可写流的 highWaterMark，暂停读取
+        let flag = dest.write(data);
+        if (!flag) this.pause();
+    });
+ 
+    dest.on("drain", () => {
+        // 当可写流清空内存时恢复读取
+        this.resume();
+    });
+ 
+    this.on("end", () => {
+        // 在读取完毕后关闭文件
+        this.destroy();
+    });
+};
 function computeNewHighWaterMark(n) {
     n--;
     n |= n >>> 1;
